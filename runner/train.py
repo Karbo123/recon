@@ -4,9 +4,10 @@ import os
 import torch
 import gorilla
 import argparse
+from glob import glob
 from tensorboardX import SummaryWriter
-from os.path import join, dirname, abspath, basename, splitexit, exists as file_exists
-from recon.utils import parse_unknown_args
+from os.path import join, dirname, abspath, basename, splitext, relpath, exists as file_exists
+from recon.utils import parse_unknown_args, backup_config, backup_cmdinput
 
 if __name__ == "__main__":
     ##########################################################################
@@ -16,10 +17,10 @@ if __name__ == "__main__":
     parser.add_argument("--cfg", type=str, help="path to config file")
     parser.add_argument("--gpu_id", type=str, nargs="+", default="auto", help="which gpu id to use (higher priority)")
     parser.add_argument("--gpu_num", type=int, default=1, help="how many gpu to use")
-    parser.add_argument("--parallel_mode", type=str, default="data", help="which parallel strategy to use")
+    parser.add_argument("--parallel_mode", type=str, default="none", help="which parallel strategy to use")
     parser.add_argument("--no_tensorboard", action="store_true", help="Do not log tensorboard")
     parser.add_argument("--load_model_only", action="store_true", help="only load model params from file")
-    parser.add_argument("--load_model_name", action=str, default="model-latest.pt", help="the model file name to load from")
+    parser.add_argument("--load_model_name", type=str, default="model-latest.pt", help="the model file name to load from")
     args, args_unknown = parser.parse_known_args()
 
     # configuration
@@ -27,27 +28,45 @@ if __name__ == "__main__":
     cfg = gorilla.merge_cfg_and_args(cfg, args)
     cfg.merge_from_dict(parse_unknown_args(args_unknown)) # it may override those from file
 
+    # NOTE
+    # 1. if you want to resume from some specific output folder 
+    #    (assuming you do not tell save.base_dir in config file),
+    #    please pass: "--save.base_dir XXXX" as additional argument,
+    #    otherwise it may create a new output folder
+
     ##########################################################################
     ############################### GPU Setting ##############################
     ##########################################################################
     
     # set GPUs
-    assert torch.cuda.is_available(), "cannot find GPU"
+    assert torch.cuda.is_available(), "Cannot find GPU"
     gorilla.set_cuda_visible_devices(gpu_ids = (None if ("auto" in cfg.gpu_id) else cfg.gpu_id),
                                      num_gpu = cfg.gpu_num,
                                      mode    = "process")
 
     # for parallel training
-    assert cfg.parallel_mode in ["data", "pipeline"], "`parallel_mode` must be either 'data' or 'pipeline'"
-    is_data_parallel = (len(os.environ["CUDA_VISIBLE_DEVICES"].split(",")) > 1)
+    assert cfg.parallel_mode in ["none", "data", "pipeline"], "`parallel_mode` must be in ['none', 'data', 'pipeline']"
+    is_data_parallel = (cfg.parallel_mode == "data")
 
     ##########################################################################
     ############################# Training Setting ###########################
     ##########################################################################
 
-    epoch_end = cfg.get("training", {}).get("epoch_end", int(1e20))  # num of total epochs
     epoch = 0
     iteration = 0
+    epoch_end = cfg.get("training", {}).get("epoch_end", int(1e20))  # num of total epochs
+    
+    print_every = cfg.get("routine", {}).get("print_every", -1)
+    checkpoint_latest_every = cfg.get("routine", {}).get("checkpoint_latest_every", -1)
+    checkpoint_every = cfg.get("routine", {}).get("checkpoint_every", -1)
+    validate_every = cfg.get("routine", {}).get("validate_every", -1)
+    visualize_every = cfg.get("routine", {}).get("visualize_every", -1)
+
+    model_selection_metric = cfg.get("save", {}).get("model_selection_metric")
+    model_selection_mode = cfg.get("save", {}).get("model_selection_mode")
+    assert model_selection_mode in ["maximize", "minimize"], "`model_selection_mode` must be either `maximize` or `minimize`"
+    model_selection_sign = 1 if model_selection_mode == "maximize" else (-1)
+    metric_val_best = - model_selection_sign * float("+inf") # set to the worst
 
     ##########################################################################
     ############################## Saving Setting ############################
@@ -56,7 +75,7 @@ if __name__ == "__main__":
     working_dir = dirname(dirname(abspath(cfg.cfg)))
 
     save_dir = join(working_dir, "out", cfg.get("save", {}).get("base_dir",  
-                    f"{splitexit(basename(cfg.cfg))[0].replace('cfg_', '')}_{gorilla.timestamp()}"))
+                    f"{splitext(basename(cfg.cfg))[0].replace('cfg_', '')}_{gorilla.timestamp()}"))
     os.makedirs(save_dir, exist_ok=True)
 
     checkpoint_dir = join(save_dir, "checkpoint")
@@ -64,6 +83,10 @@ if __name__ == "__main__":
 
     cmdlog_dir = join(save_dir, "cmdlog")
     os.makedirs(cmdlog_dir, exist_ok=True)
+    logfile_path = join(cmdlog_dir, "cmdlog.log")
+    logger = gorilla.get_logger(log_file=logfile_path, name=basename(working_dir))
+    logger.info(f"This process PID = {os.getpid()}")
+    logger.info(f"Configuration = {cfg}")
 
     if not cfg.no_tensorboard:
         tensorboard_dir = join(save_dir, "tensorboard")
@@ -73,24 +96,17 @@ if __name__ == "__main__":
         vis_dir = join(save_dir, "vis")
         os.makedirs(vis_dir, exist_ok=True)
     
-
-    model_selection_metric = cfg.get("save", {}).get("model_selection_metric")
-    model_selection_mode = cfg.get("save", {}).get("model_selection_mode")
-    assert model_selection_mode in ["maximize", "minimize"], "`model_selection_mode` must be either `maximize` or `minimize`"
-    model_selection_sign = 1 if model_selection_mode == "maximize" else (-1)
-    metric_val_best = - model_selection_sign * float("+inf") # set to the worst
-
-    print_every = cfg.get("routine", {}).get("print_every", -1)
-    checkpoint_latest_every = cfg.get("routine", {}).get("checkpoint_latest_every", -1)
-    checkpoint_every = cfg.get("routine", {}).get("checkpoint_every", -1)
-    validate_every = cfg.get("routine", {}).get("validate_every", -1)
-    visualize_every = cfg.get("routine", {}).get("visualize_every", -1)
-
-    # save log file
-    logfile_path = join(cmdlog_dir, "cmdlog.log")
-    logger = gorilla.get_logger(log_file=logfile_path, name=basename(working_dir))
-    logger.info(f"This process pid = {os.getpid()}")
-    logger.info(f"Configuration = {cfg}")
+    # backup codes
+    folders_to_be_backup = glob(join(working_dir, "*"))
+    folders_to_be_backup = [s for s in folders_to_be_backup if \
+                            all([(x not in s) for x in ["config", "out"]])] # except these folders
+    gorilla.backup(
+        log_dir=relpath(save_dir, working_dir),
+        backup_list=[relpath(s, working_dir) for s in folders_to_be_backup],
+        logger=logger,
+    )
+    backup_config(log_dir=save_dir, cfg=cfg)
+    backup_cmdinput(log_dir=save_dir)
 
     ##########################################################################
     ############################ Dataset setup ###############################
@@ -191,7 +207,7 @@ if __name__ == "__main__":
                 gorilla.save_checkpoint(model=model, 
                                         filename=save_checkpoint_path,
                                         optimizer=optimizer,
-                                        scheduler=scheduler
+                                        scheduler=scheduler,
                                         meta=dict(
                                             epoch=epoch,
                                             iteration=iteration,
@@ -200,12 +216,13 @@ if __name__ == "__main__":
                                     )
                 logger.info(f"Saved latest checkpoint to file: {save_checkpoint_path}")
 
+            # save checkpoint
             if checkpoint_every > 0 and (iteration + 1) % checkpoint_every == 0:
                 save_checkpoint_path = join(checkpoint_dir, f"model-e{epoch}-i{iteration}.pt")
                 gorilla.save_checkpoint(model=model,
                                         filename=save_checkpoint_path,
                                         optimizer=optimizer,
-                                        scheduler=scheduler
+                                        scheduler=scheduler,
                                         meta=dict(
                                             epoch=epoch,
                                             iteration=iteration,
@@ -239,7 +256,7 @@ if __name__ == "__main__":
                     gorilla.save_checkpoint(model=model, 
                                             filename=save_checkpoint_path,
                                             optimizer=optimizer,
-                                            scheduler=scheduler
+                                            scheduler=scheduler,
                                             meta=dict(
                                                 epoch=epoch,
                                                 iteration=iteration,
