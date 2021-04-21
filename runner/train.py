@@ -101,7 +101,7 @@ if __name__ == "__main__":
     folders_to_be_backup = [s for s in folders_to_be_backup if \
                             all([(x not in s) for x in ["config", "out"]])] # except these folders
     gorilla.backup(
-        log_dir=relpath(save_dir, working_dir),
+        backup_dir=join(relpath(save_dir, working_dir), "backup"),
         backup_list=[relpath(s, working_dir) for s in folders_to_be_backup],
         logger=logger,
     )
@@ -142,11 +142,12 @@ if __name__ == "__main__":
 
     # Print model
     logger.info(f"Model = {model}")
-    n_parameters = sum(p.numel() for p in model.parameters())
-    n_parameters_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    logger.info(f"Total number of parameters of this model = {n_parameters}")
-    logger.info(f"Total number of trainable parameters of this model = {n_parameters_trainable}")
-
+    # n_parameters = sum(p.numel() for p in model.parameters())
+    # n_parameters_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # logger.info(f"Total number of parameters of this model = {n_parameters}")
+    # logger.info(f"Total number of trainable parameters of this model = {n_parameters_trainable}")
+    logger.info(gorilla.parameter_count_table(model))
+    
     ##########################################################################
     ############################## Checkpoints  ##############################
     ##########################################################################
