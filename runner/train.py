@@ -23,7 +23,25 @@ if __name__ == "__main__":
     parser.add_argument("--load_model_name", type=str, default="model-latest.pt", help="the model file name to load from")
     args, args_unknown = parser.parse_known_args()
 
-    # configuration
+    ##########################################################################
+    ############################### GPU Setting ##############################
+    ##########################################################################
+    
+    # set GPUs
+    gorilla.set_cuda_visible_devices(gpu_ids = (None if ("auto" in args.gpu_id) else args.gpu_id),
+                                     num_gpu = args.gpu_num,
+                                     mode    = "process")
+    assert torch.cuda.is_available(), "Cannot find GPU"
+
+    # for parallel training
+    assert args.parallel_mode in ["none", "data", "pipeline"], "`parallel_mode` must be in ['none', 'data', 'pipeline']"
+    is_data_parallel = (args.parallel_mode == "data")
+
+
+    ##########################################################################
+    ############################## Configuration #############################
+    ##########################################################################
+
     cfg = gorilla.Config.fromfile(args.cfg)
     cfg = gorilla.merge_cfg_and_args(cfg, args)
     cfg.merge_from_dict(parse_unknown_args(args_unknown)) # it may override those from file
@@ -34,19 +52,6 @@ if __name__ == "__main__":
     #    please pass: "--save.base_dir XXXX" as additional argument,
     #    otherwise it may create a new output folder
 
-    ##########################################################################
-    ############################### GPU Setting ##############################
-    ##########################################################################
-    
-    # set GPUs
-    assert torch.cuda.is_available(), "Cannot find GPU"
-    gorilla.set_cuda_visible_devices(gpu_ids = (None if ("auto" in cfg.gpu_id) else cfg.gpu_id),
-                                     num_gpu = cfg.gpu_num,
-                                     mode    = "process")
-
-    # for parallel training
-    assert cfg.parallel_mode in ["none", "data", "pipeline"], "`parallel_mode` must be in ['none', 'data', 'pipeline']"
-    is_data_parallel = (cfg.parallel_mode == "data")
 
     ##########################################################################
     ############################# Training Setting ###########################
@@ -138,7 +143,7 @@ if __name__ == "__main__":
     model.cuda()
 
     optimizer = cfg.get("optimizer")
-    schedular = cfg.get("schedular")
+    scheduler = cfg.get("scheduler")
 
     # Print model
     logger.info(f"Model = {model}")
@@ -169,7 +174,7 @@ if __name__ == "__main__":
     logger.info(f"Epoch starting from {epoch}")
     logger.info(f"Iteration starting from {iteration}")
     logger.info(f"Current best validation metric ({model_selection_metric}, "
-                f"{'high is better' if model_selection_mode == 'maximize' else 'lower is better'}"
+                f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
                 f") is {metric_val_best:.3e}")
 
     if not args.no_tensorboard:
@@ -239,7 +244,7 @@ if __name__ == "__main__":
                 metric_val = eval_dict[model_selection_metric]
                 logger.info(
                     f"New validation metric ({model_selection_metric}, "
-                    f"{'high is better' if model_selection_mode == 'maximize' else 'lower is better'}"
+                    f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
                     f") is {metric_val:.3e}"
                 )
                 if not args.no_tensorboard:
@@ -250,7 +255,7 @@ if __name__ == "__main__":
                     metric_val_best = metric_val # update the best record
                     logger.info(
                         f"New best model! Metric ({model_selection_metric}, "
-                        f"{'high is better' if model_selection_mode == 'maximize' else 'lower is better'}"
+                        f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
                         f") is {metric_val_best:.3e}"
                     )
                     save_checkpoint_path = join(checkpoint_dir, "model-best.pt")
@@ -269,7 +274,7 @@ if __name__ == "__main__":
             # visualize performance
             if visualize_every > 0 and (iteration + 1) % visualize_every == 0:
                 logger.info("Performing visualization...")
-                visualize(vis_dir, vis_data)
+                visualize(vis_dir, vis_data, logger)
 
             iteration += 1
 
