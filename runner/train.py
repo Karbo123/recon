@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
         epoch += 1
 
-        schedular.step()
+        scheduler.step()
         if epoch_end > 0 and epoch >= epoch_end:
             break
 
