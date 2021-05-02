@@ -166,10 +166,12 @@ if __name__ == "__main__":
                               resume_optimizer=(not cfg.load_model_only),
                               resume_scheduler=(not cfg.load_model_only),
                             )
+        logger.info(f"We successfully load model parameters from: {load_model_path}")
         if not cfg.load_model_only:
             epoch = meta.get("epoch")
             iteration = meta.get("iteration")
             metric_val_best = meta.get("metric_val_best")
+            logger.info(f"We successfully load training meta (epoch, iteration, metric_val_best).")
     
     logger.info(f"Epoch starting from {epoch}")
     logger.info(f"Iteration starting from {iteration}")
@@ -203,8 +205,8 @@ if __name__ == "__main__":
             if print_every > 0 and (iteration + 1) % print_every == 0:
                 cmd_str = f"[Epoch={epoch}|Time={timer_print.since_last():.3f}] "
                 for k, v in loss_dict.items():
-                    cmd_str += f"{k}={v:.4e} |"
-                cmd_str = cmd_str[:-1]
+                    cmd_str += f"{k}={v:.4e} | "
+                cmd_str = cmd_str[:-2]
                 logger.info(cmd_str)
                 
             # save checkpoint
