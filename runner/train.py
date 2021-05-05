@@ -67,11 +67,13 @@ if __name__ == "__main__":
     validate_every = cfg.get("routine", {}).get("validate_every", -1)
     visualize_every = cfg.get("routine", {}).get("visualize_every", -1)
 
-    model_selection_metric = cfg.get("save", {}).get("model_selection_metric")
-    model_selection_mode = cfg.get("save", {}).get("model_selection_mode")
-    assert model_selection_mode in ["maximize", "minimize"], "`model_selection_mode` must be either `maximize` or `minimize`"
-    model_selection_sign = 1 if model_selection_mode == "maximize" else (-1)
-    metric_val_best = - model_selection_sign * float("+inf") # set to the worst
+    metric_val_best = float("nan")
+    if validate_every > 0:
+        model_selection_metric = cfg.get("save", {}).get("model_selection_metric")
+        model_selection_mode = cfg.get("save", {}).get("model_selection_mode")
+        assert model_selection_mode in ["maximize", "minimize"], "`model_selection_mode` must be either `maximize` or `minimize`"
+        model_selection_sign = 1 if model_selection_mode == "maximize" else (-1)
+        metric_val_best = - model_selection_sign * float("+inf") # set to the worst
 
     ##########################################################################
     ############################## Saving Setting ############################
@@ -175,9 +177,10 @@ if __name__ == "__main__":
     
     logger.info(f"Epoch starting from {epoch}")
     logger.info(f"Iteration starting from {iteration}")
-    logger.info(f"Current best validation metric ({model_selection_metric}, "
-                f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
-                f") is {metric_val_best:.3e}")
+    if validate_every > 0:
+        logger.info(f"Current best validation metric ({model_selection_metric}, "
+                    f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
+                    f") is {metric_val_best:.3e}")
 
     if not args.no_tensorboard:
         tb_writer = SummaryWriter(log_dir=tensorboard_dir)
