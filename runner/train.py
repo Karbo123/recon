@@ -5,7 +5,6 @@ import torch
 import gorilla
 import argparse
 from glob import glob
-from tensorboardX import SummaryWriter
 from os.path import join, dirname, abspath, basename, splitext, relpath, exists as file_exists
 from recon.utils import parse_unknown_args, backup_config, backup_cmdinput
 
@@ -140,9 +139,10 @@ if __name__ == "__main__":
 
     model = cfg.get("model")
 
-    if is_data_parallel:
+    if is_data_parallel: # NOTE should do this line in your config file !!! NOTE deprecated
         model = torch.nn.DataParallel(model) # TODO use DistributedDataParallel for faster speed
-    model.cuda()
+    if all([(not p.is_cuda) for p in model.parameters()]):
+        model.cuda() # if on CPU, then move to CUDA
 
     optimizer = cfg.get("optimizer")
     scheduler = cfg.get("scheduler")
@@ -183,7 +183,7 @@ if __name__ == "__main__":
                     f") is {metric_val_best:.3e}")
 
     if not args.no_tensorboard:
-        tb_writer = SummaryWriter(log_dir=tensorboard_dir)
+        tb_writer = gorilla.TensorBoardWriter(logdir=tensorboard_dir)
 
     ##########################################################################
     ################################ Training ################################
