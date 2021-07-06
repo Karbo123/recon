@@ -94,9 +94,10 @@ if __name__ == "__main__":
     checkpoint_dir = join(save_dir, "checkpoint")
     os.makedirs(checkpoint_dir, exist_ok=True)
 
+    repo_info = "None"
     if cfg.get("repo_dirs"): # some repos that really matter, we need to print them out
         repo_dirs = cfg.get("repo_dirs")
-        repo_info = ""
+        repo_info = "\n"
         if isinstance(repo_dirs, dict):
             for repo_name, repo_dir in repo_dirs.items():
                 repo_info += f"- [{repo_name}] dir = {repo_dir}, hash = {get_git_hash(repo_dir)}\n"
@@ -112,7 +113,7 @@ if __name__ == "__main__":
     logfile_path = join(cmdlog_dir, "cmdlog.log")
     logger = gorilla.get_logger(log_file=logfile_path, name=basename(working_dir))
     logger.info(f"This process PID = {os.getpid()}")
-    logger.info(f"Repo info = \n{repo_info}")
+    logger.info(f"Repo info = {repo_info}")
     logger.info(f"Configuration = {cfg}")
 
     if not cfg.no_tensorboard:
