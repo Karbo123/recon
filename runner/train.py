@@ -83,10 +83,10 @@ if __name__ == "__main__":
     save_dir = join(working_dir, "out", cfg.get("save", {}).get("base_dir",  
                     f"{splitext(basename(cfg.cfg))[0].replace('cfg_', '')}_{gorilla.timestamp()}"))
     if dir_exists(save_dir):
-        ans = input_with_timeout("warning: the save dir already exists, override (y/n) ?\n>>>", timeout=10) # ask user for safety
+        ans = input_with_timeout("warning: the save dir already exists, override (y/n) ?\n>>>", timeout=60) # ask user for safety
         if ans != "y":
             print()
-            if ans is None: print("time out 10 seconds")
+            if ans is None: print("time out 60 seconds")
             print("you entered", f'a string of "{ans}"' if ans else "nothing")
             print("abort"); exit(1)
     os.makedirs(save_dir, exist_ok=True)
