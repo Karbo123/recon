@@ -5,8 +5,8 @@ import torch
 import gorilla
 import argparse
 from glob import glob
-from os.path import join, dirname, abspath, basename, splitext, relpath, exists as file_exists
-from recon.utils import parse_unknown_args, backup_config, backup_cmdinput
+from os.path import join, dirname, abspath, basename, splitext, relpath, exists as file_exists, exists as dir_exists
+from recon.utils import parse_unknown_args, backup_config, backup_cmdinput, get_git_hash, input_with_timeout
 
 if __name__ == "__main__":
     ##########################################################################
@@ -82,16 +82,37 @@ if __name__ == "__main__":
 
     save_dir = join(working_dir, "out", cfg.get("save", {}).get("base_dir",  
                     f"{splitext(basename(cfg.cfg))[0].replace('cfg_', '')}_{gorilla.timestamp()}"))
+    if dir_exists(save_dir):
+        ans = input_with_timeout("warning: the save dir already exists, override (y/n) ?\n>>>", timeout=10) # ask user for safety
+        if ans != "y":
+            print()
+            if ans is None: print("time out 10 seconds")
+            print("you entered", f'a string of "{ans}"' if ans else "nothing")
+            print("abort"); exit(1)
     os.makedirs(save_dir, exist_ok=True)
 
     checkpoint_dir = join(save_dir, "checkpoint")
     os.makedirs(checkpoint_dir, exist_ok=True)
+
+    if cfg.get("repo_dirs"): # some repos that really matter, we need to print them out
+        repo_dirs = cfg.get("repo_dirs")
+        repo_info = ""
+        if isinstance(repo_dirs, dict):
+            for repo_name, repo_dir in repo_dirs.items():
+                repo_info += f"- [{repo_name}] dir = {repo_dir}, hash = {get_git_hash(repo_dir)}\n"
+        elif isinstance(repo_dirs, (tuple, list)):
+            for idx, repo_dir in enumerate(repo_dirs):
+                repo_info += f"- [{basename(repo_dir)}] dir = {repo_dir}, hash = {get_git_hash(repo_dir)}\n"
+        else:
+            print(f"error: unrecognized repo_dirs of type {type(repo_dirs)}")
+            exit(1)
 
     cmdlog_dir = join(save_dir, "cmdlog")
     os.makedirs(cmdlog_dir, exist_ok=True)
     logfile_path = join(cmdlog_dir, "cmdlog.log")
     logger = gorilla.get_logger(log_file=logfile_path, name=basename(working_dir))
     logger.info(f"This process PID = {os.getpid()}")
+    logger.info(f"Repo info = \n{repo_info}")
     logger.info(f"Configuration = {cfg}")
 
     if not cfg.no_tensorboard:
