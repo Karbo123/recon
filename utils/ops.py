@@ -69,6 +69,11 @@ if __name__ == "__main__":
     do(reduce(add, [Printer("wait for 1s"), Sleeper(1.0)] * 4))
     Printer("===========================")()
 
+    do(sum([Printer("wait for 1s"), Sleeper(1.0), 
+            Printer("wait for 2s"), Sleeper(2.0)], 
+           Operator()))
+    Printer("===========================")()
+
     do(Printer("wait for 1s"), Sleeper(1.0), 
        Printer("wait for 2s"), Sleeper(2.0), )
     Printer("===========================")()
