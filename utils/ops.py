@@ -16,6 +16,9 @@ class Operator:
         op_ret.ops = op_list
         return op_ret
 
+    def __call__(self, times=1):
+        do(*self.ops, times=times)
+
 
 class Sleeper(Operator):
     def __init__(self, time_sleep=1.0):
@@ -37,6 +40,9 @@ class Printer(Operator):
 
 
 def do(*ops, times=1):
+    if len(ops) == 0:
+        pass
+
     if len(ops) == 1:
         if isinstance(times, int) and times >= 0:
             for _ in range(times):
@@ -44,6 +50,7 @@ def do(*ops, times=1):
         else:
             while True:
                 for sub_op in ops[0].ops: sub_op()
+    
     else:
         if isinstance(times, int) and times >= 0:
             for _ in range(times):
@@ -85,5 +92,13 @@ if __name__ == "__main__":
     Printer("===========================")()
 
     do(Printer("wait for 1s") + Sleeper(1.0) + Printer("wait for 1s"), Sleeper(1.0), times=3)
+    Printer("===========================")()
+
+    combined_ops = Printer("wait for 1s") + Sleeper(1.0) + \
+                   Printer("wait for 2s") + Sleeper(2.0)
+    combined_ops()
+    Printer("===========================")()
+
+    combined_ops(times=3)
     Printer("===========================")()
 
