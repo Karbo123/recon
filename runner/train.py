@@ -78,7 +78,7 @@ if __name__ == "__main__":
     ############################## Saving Setting ############################
     ##########################################################################
 
-    working_dir = dirname(dirname(abspath(cfg.cfg)))
+    working_dir = abspath(".")
 
     save_dir = join(working_dir, "out", cfg.get("save", {}).get("base_dir",  
                     f"{splitext(basename(cfg.cfg))[0].replace('cfg_', '')}_{gorilla.timestamp()}"))
