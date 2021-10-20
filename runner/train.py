@@ -303,6 +303,7 @@ if __name__ == "__main__":
                 logger.info("Performing visualization...")
                 visualize(vis_dir, vis_data, logger)
 
+            logger.handlers[0].flush()
             iteration += 1
 
         epoch += 1
