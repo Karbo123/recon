@@ -175,7 +175,7 @@ if __name__ == "__main__":
     # n_parameters_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     # logger.info(f"Total number of parameters of this model = {n_parameters}")
     # logger.info(f"Total number of trainable parameters of this model = {n_parameters_trainable}")
-    logger.info(gorilla.parameter_count_table(model))
+    logger.info("\n" + gorilla.parameter_count_table(model))
     
     ##########################################################################
     ############################## Checkpoints  ##############################
@@ -214,6 +214,7 @@ if __name__ == "__main__":
     train_step = cfg.get("train_step_fn")
     evaluate = cfg.get("evaluate_fn")
     visualize = cfg.get("visualize_fn")
+    get_scheduler_args = cfg.get("get_scheduler_args", lambda: [])
 
     timer_print = gorilla.Timer()
 
@@ -308,7 +309,7 @@ if __name__ == "__main__":
 
         epoch += 1
 
-        scheduler.step()
+        scheduler.step(*get_scheduler_args())
         if epoch_end > 0 and epoch >= epoch_end:
             break
 
