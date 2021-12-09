@@ -25,8 +25,9 @@ def logger_info(message=None, header="[rank-{rank}] ", collective=False):
     global message_buffer, logging_group
 
     if not torch.distributed.is_initialized(): # single gpu
-        message_in = header.format(rank=0) + message
-        message_buffer += [message_in]
+        if isinstance(message, str):
+            message_in = header.format(rank=0) + message
+            message_buffer += [message_in]
         if logger is None: return
         # log message
         for msg in message_buffer:
@@ -42,7 +43,6 @@ def logger_info(message=None, header="[rank-{rank}] ", collective=False):
         if isinstance(message, str):
             message_in = header.format(rank=rank) + message
         else: message_in = None
-        collected_messages = [None for _ in range(num_rank)] if rank == 0 else None
 
         if not collective: # print immediately for rank-0 process
             assert rank == 0, f"rank-{rank} process (rank > 0) need to print with `collective=True`"
@@ -55,6 +55,9 @@ def logger_info(message=None, header="[rank-{rank}] ", collective=False):
             message_buffer = list() # clear all
 
         else: # need to synchronize messages
+            # collection
+            collected_messages = [None for _ in range(num_rank)] if rank == 0 else None
+
             # NOTE reach here simultaneously
             torch.distributed.gather_object(message_in, collected_messages, group=logging_group)
 
