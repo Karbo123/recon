@@ -26,8 +26,7 @@ def logger_info(message=None, header="[rank-{rank}] ", collective=False):
 
     if not torch.distributed.is_initialized(): # single gpu
         if isinstance(message, str):
-            message_in = header.format(rank=0) + message
-            message_buffer += [message_in]
+            message_buffer += [message]
         if logger is None: return
         # log message
         for msg in message_buffer:
