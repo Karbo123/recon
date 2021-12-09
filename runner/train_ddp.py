@@ -209,17 +209,18 @@ def worker(rank, args):
                                   resume_optimizer=(not cfg.load_model_only),
                                   resume_scheduler=(not cfg.load_model_only),
                                 ) # NOTE load model file only on the first process
-            logger_info(f"We successfully load model parameters from: {load_model_path}")
+            logger_info(f"we successfully load model parameters from: {load_model_path}")
             if not cfg.load_model_only:
                 epoch = meta.get("epoch")
                 iteration = meta.get("iteration")
                 metric_val_best = meta.get("metric_val_best")
-                logger_info(f"We successfully load training meta (epoch, iteration, metric_val_best).")
+                iteration += 1 # NOTE the saved model is for this iteration, so we need to increase it by one to start training
+                logger_info(f"we successfully load training meta (epoch, iteration, metric_val_best).")
         
-        logger_info(f"Epoch starting from {epoch}")
-        logger_info(f"Iteration starting from {iteration}")
+        logger_info(f"epoch starting from {epoch}")
+        logger_info(f"iteration starting from {iteration}")
         if validate_every > 0:
-            logger_info(f"Current best validation metric ({model_selection_metric}, "
+            logger_info(f"current best validation metric ({model_selection_metric}, "
                         f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
                         f") is {metric_val_best:.3e}")
 
@@ -327,7 +328,7 @@ def worker(rank, args):
                     # select our concerned metric
                     metric_val = eval_dict[model_selection_metric]
                     logger_info(
-                        f"new validation metric ({model_selection_metric}, "
+                        f"new averaged validation metric ({model_selection_metric}, "
                         f"{'higher is better' if model_selection_mode == 'maximize' else 'lower is better'}"
                         f") is {metric_val:.3e}"
                     )
@@ -381,7 +382,7 @@ def worker(rank, args):
             break
 
     if rank == 0:
-        logger_info("Training completed.")
+        logger_info("training completed.")
     if num_rank > 1:
         torch.distributed.destroy_process_group()
 
@@ -433,7 +434,7 @@ if __name__ == "__main__":
     # prepare configs
     dist_config = dict(WORLD_SIZE=world_size, 
                        MASTER_ADDR="localhost", 
-                       MASTER_PORT=str(_find_free_port()),
+                       MASTER_PORT=str(_find_free_port()) if world_size > 1 else "",
                     )
     worker_args = ((args, args_unknown), (dist_config, delayed_messages))
 
