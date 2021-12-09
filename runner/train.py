@@ -1,4 +1,6 @@
 """ Basic runner for training model
+    NOTE this runner is deprecated (do not support DDP training)
+         use `train_ddp.py` instead
 """
 import os
 import torch
