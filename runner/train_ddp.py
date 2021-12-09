@@ -32,6 +32,7 @@ def worker(rank, args):
         torch.distributed.init_process_group("nccl") # NOTE `nccl` can only communicate cuda memory data
         host_group = torch.distributed.new_group(backend="gloo") # NOTE therefore we use `gloo` to communicate host memory data
         torch.distributed.barrier() # wait all processes to be initialized
+    torch.cuda.set_device(f"cuda:{rank}") # set device
 
     # print delayed messages
     if rank == 0:
