@@ -98,14 +98,14 @@ def worker(rank, args):
                     f"{cfg_name}_{gorilla.timestamp()}"))
     if dir_exists(save_dir) and rank == 0:
         if args.reuse_folder == "always":
-            logger_info(f"reusing an existing folder: {save_dir}")
+            print(f"reusing an existing folder: {save_dir}") # NOTE use `print` because it should be show immediately
         elif args.reuse_folder == "never":
-            logger_info(f"found existing folder: {save_dir}")
-            logger_info("abort"); exit(1)
+            print(f"found existing folder: {save_dir}")
+            print("abort"); exit(1)
         else:
             timeout_sec = int(re.search(r"\d+", args.reuse_folder).group())
-            logger_info("the save folder already exists, override? (timeout = yes)")
-            logger_info(f"waiting for {timeout_sec} sec...")
+            print("the save folder already exists, override? (timeout = yes)")
+            print(f"waiting for {timeout_sec} sec...")
             time.sleep(timeout_sec)
     if rank == 0: os.makedirs(save_dir, exist_ok=True)
     if num_rank > 1:
