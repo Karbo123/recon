@@ -6,5 +6,5 @@ from .iostream import input_with_timeout, print_cfg
 from .logging import logger, set_logger, logger_info
 from .ops import Sleeper, Printer, do
 from .parse import parse_unknown_args
-from .proc import dict_to_numerics, dict_save_lr
+from .proc import dict_to_numerics, dict_save_lr, dist_info, dist_samplers, kwargs_shuffle_sampler
 from .sys import limit_memory
