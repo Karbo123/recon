@@ -18,6 +18,7 @@ def worker(rank, args):
     import time
     import gorilla
     from glob import glob
+    from itertools import chain
     from os.path import join, abspath, basename, splitext, relpath, exists as file_exists, exists as dir_exists
     from recon.utils import parse_unknown_args, backup_config, backup_cmdinput, get_git_hash, print_cfg, set_logger, logger_info
 
@@ -148,7 +149,8 @@ def worker(rank, args):
         if rank == 0: os.makedirs(vis_dir, exist_ok=True)
     
     # backup codes
-    folders_to_be_backup = glob(join(working_dir, "*"))
+    folders_to_be_backup = [glob(join(working_dir, f)) for f in cfg.get("save", {}).get("backup_lst", ["*"])]
+    folders_to_be_backup = chain(*folders_to_be_backup)
     folders_to_be_backup = [s for s in folders_to_be_backup if \
                             all([(x not in s) for x in ["config", "out"]])] # except these folders
     if rank == 0:
