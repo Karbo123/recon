@@ -393,6 +393,7 @@ def worker(rank, args):
     if rank == 0:
         logger_info("training completed.")
     if num_rank > 1:
+        torch.distributed.barrier()
         torch.distributed.destroy_process_group()
 
 
