@@ -205,23 +205,26 @@ def worker(rank, args):
     ##########################################################################
 
     load_model_path = join(checkpoint_dir, cfg.load_model_name)
-    if rank == 0:
-        if file_exists(load_model_path):
-            meta = gorilla.resume(model=model, 
-                                  filename=load_model_path,
-                                  optimizer=optimizer,
-                                  scheduler=scheduler,
-                                  resume_optimizer=(not cfg.load_model_only),
-                                  resume_scheduler=(not cfg.load_model_only),
-                                ) # NOTE load model file only on the first process
+    
+    if file_exists(load_model_path):
+        meta = gorilla.resume(model=model, 
+                              filename=load_model_path,
+                              optimizer=optimizer, # distributed will copy model, but doesn't copy optim and sche, so each process will load individually
+                              scheduler=scheduler,
+                              resume_optimizer=(not cfg.load_model_only),
+                              resume_scheduler=(not cfg.load_model_only),
+                            ) # NOTE load model file only on the first process
+        if rank == 0:
             logger_info(f"we successfully load model parameters from: {load_model_path}")
-            if not cfg.load_model_only:
-                epoch = meta.get("epoch")
-                iteration = meta.get("iteration")
-                metric_val_best = meta.get("metric_val_best")
-                iteration += 1 # NOTE the saved model is for this iteration, so we need to increase it by one to start training
+        if not cfg.load_model_only:
+            epoch = meta.get("epoch")
+            iteration = meta.get("iteration")
+            metric_val_best = meta.get("metric_val_best")
+            iteration += 1 # NOTE the saved model is for this iteration, so we need to increase it by one to start training
+            if rank == 0:
                 logger_info(f"we successfully load training meta (epoch, iteration, metric_val_best).")
-        
+
+    if rank == 0:
         logger_info(f"epoch starting from {epoch}")
         logger_info(f"iteration starting from {iteration}")
         if validate_every > 0:
@@ -231,15 +234,7 @@ def worker(rank, args):
 
         if not args.no_tensorboard:
             tb_writer = gorilla.TensorBoardWriter(logdir=tensorboard_dir)
-    
-    elif file_exists(load_model_path) and not cfg.load_model_only:
-        epoch, iteration, metric_val_best = None, None, None
 
-    if num_rank > 1:
-        pack = [epoch, iteration, metric_val_best]
-        torch.distributed.broadcast_object_list(pack, group=host_group) # copy from the first process
-        epoch, iteration, metric_val_best = pack
-    
     # convert to DDP model
     if num_rank > 1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank])
