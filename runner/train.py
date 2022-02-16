@@ -386,6 +386,7 @@ def worker(rank, args):
             break
 
     if rank == 0:
+        tb_writer.close() # close tensorboard to avoid EOFError
         logger_info("training completed.")
     if num_rank > 1:
         torch.distributed.barrier()
