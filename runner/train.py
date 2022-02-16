@@ -213,7 +213,7 @@ def worker(rank, args):
                               scheduler=scheduler,
                               resume_optimizer=(not cfg.load_model_only),
                               resume_scheduler=(not cfg.load_model_only),
-                            ) # NOTE load model file only on the first process
+                            ) # NOTE load model file on each process
         if rank == 0:
             logger_info(f"we successfully load model parameters from: {load_model_path}")
         if not cfg.load_model_only:
