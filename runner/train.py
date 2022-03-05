@@ -211,12 +211,12 @@ def worker(rank, args):
                               filename=load_model_path,
                               optimizer=optimizer, # distributed will copy model, but doesn't copy optim and sche, so each process will load individually
                               scheduler=scheduler,
-                              resume_optimizer=(not cfg.load_model_only),
-                              resume_scheduler=(not cfg.load_model_only),
+                              resume_optimizer=True,
+                              resume_scheduler=(not cfg.load_param_only),
                             ) # NOTE load model file on each process
         if rank == 0:
             logger_info(f"we successfully load model parameters from: {load_model_path}")
-        if not cfg.load_model_only:
+        if not cfg.load_param_only:
             epoch = meta.get("epoch")
             iteration = meta.get("iteration")
             metric_val_best = meta.get("metric_val_best")
@@ -402,7 +402,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", type=str, help="path to config file")
     parser.add_argument("--no_tensorboard", action="store_true", help="do not log tensorboard")
-    parser.add_argument("--load_model_only", action="store_true", help="only load model parameters from file")
+    parser.add_argument("--load_param_only", action="store_true", help="only load model/optim parameters from file")
     parser.add_argument("--load_model_name", type=str, default="model-latest.pt", help="the model file name to load from")
     parser.add_argument("--reuse_folder", type=str, default="timeout-60sec", help="whether to reuse an existing folder (timeout = yes)")
     args, args_unknown = parser.parse_known_args()
