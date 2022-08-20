@@ -192,6 +192,9 @@ def worker(rank, args):
 
     optimizer = cfg.get("optimizer")
     scheduler = cfg.get("scheduler")
+    scaler    = cfg.get("scaler") # GradScaler (used for fp16 training)
+    if not isinstance(scaler, torch.cuda.amp.GradScaler):
+        scaler = None # it isn't a `GradScaler`
 
     arg_scheduler_is_loss = isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau)
 
@@ -220,6 +223,11 @@ def worker(rank, args):
             epoch = meta.get("epoch")
             iteration = meta.get("iteration")
             metric_val_best = meta.get("metric_val_best")
+            scaler_state_dict = meta.get("scaler")
+            if scaler_state_dict:
+                scaler.load_state_dict(scaler_state_dict)
+                if rank == 0:
+                    logger_info(f"we also successfully load scaler (GradScaler) parameters from: {load_model_path}")
             iteration += 1 # NOTE the saved model is for this iteration, so we need to increase it by one to start training
             if rank == 0:
                 logger_info(f"we successfully load training meta (epoch, iteration, metric_val_best).")
@@ -294,6 +302,7 @@ def worker(rank, args):
                                             epoch=epoch,
                                             iteration=iteration,
                                             metric_val_best=metric_val_best,
+                                            **(dict(scaler=scaler.state_dict()) if scaler else {}),
                                         ),
                                     )
                 logger_info(f"saved latest checkpoint to file: {save_checkpoint_path}")
@@ -309,6 +318,7 @@ def worker(rank, args):
                                             epoch=epoch,
                                             iteration=iteration,
                                             metric_val_best=metric_val_best,
+                                            **(dict(scaler=scaler.state_dict()) if scaler else {}),
                                         ),
                                     )
                 logger_info(f"saved current checkpoint to file: {save_checkpoint_path}")
@@ -356,6 +366,7 @@ def worker(rank, args):
                                                     epoch=epoch,
                                                     iteration=iteration,
                                                     metric_val_best=metric_val_best,
+                                                    **(dict(scaler=scaler.state_dict()) if scaler else {}),
                                                 ),
                                             )
                         logger_info(f"saved best checkpoint to file: {save_checkpoint_path}")
