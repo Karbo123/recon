@@ -1,6 +1,6 @@
 import torch
+from copy import deepcopy
 from collections import defaultdict
-
 
 # ref: https://github.com/aliutkus/torchpercentile/blob/master/torchpercentile/percentile.py
 class Percentile(torch.autograd.Function):
@@ -123,6 +123,19 @@ class GradClipper:
             self.buffer[name][self.buffer_len[name]] = norm
             self.buffer_len[name] += 1
 
+    # grad clipper also has state_dict, help to exactly resume training
+    def state_dict(self):
+        return dict(thres=self.thres, max_buffer=self.max_buffer, retain=self.retain,
+                    buffer=self.buffer,
+                    buffer_len=self.buffer_len,
+                    )
+    
+    def load_state_dict(self, sd):
+        self.thres = sd["thres"]
+        self.max_buffer = sd["max_buffer"]
+        self.retain = sd["retain"]
+        self.buffer = deepcopy(sd["buffer"])
+        self.buffer_len = deepcopy(sd["buffer_len"])
 
 
 if __name__ == "__main__":

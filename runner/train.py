@@ -193,6 +193,7 @@ def worker(rank, args):
     optimizer = cfg.get("optimizer")
     scheduler = cfg.get("scheduler")
     scaler    = cfg.get("scaler") # GradScaler (used for fp16 training)
+    clipper   = cfg.get("clipper") # GradClipper (used for clipping gradients)
     if not isinstance(scaler, torch.cuda.amp.GradScaler):
         scaler = None # it isn't a `GradScaler`
 
@@ -223,14 +224,21 @@ def worker(rank, args):
             epoch = meta.get("epoch")
             iteration = meta.get("iteration")
             metric_val_best = meta.get("metric_val_best")
+            iteration += 1 # NOTE the saved model is for this iteration, so we need to increase it by one to start training
+            if rank == 0:
+                logger_info(f"we successfully load training meta (epoch, iteration, metric_val_best).")
+            #
             scaler_state_dict = meta.get("scaler")
             if scaler_state_dict:
                 scaler.load_state_dict(scaler_state_dict)
                 if rank == 0:
                     logger_info(f"we also successfully load scaler (GradScaler) parameters from: {load_model_path}")
-            iteration += 1 # NOTE the saved model is for this iteration, so we need to increase it by one to start training
-            if rank == 0:
-                logger_info(f"we successfully load training meta (epoch, iteration, metric_val_best).")
+            #
+            clipper_state_dict = meta.get("clipper")
+            if clipper_state_dict:
+                clipper.load_state_dict(clipper_state_dict)
+                if rank == 0:
+                    logger_info(f"we also successfully load clipper (GradClipper) parameters from: {load_model_path}")
 
     if rank == 0:
         logger_info(f"epoch starting from {epoch}")
@@ -303,6 +311,7 @@ def worker(rank, args):
                                             iteration=iteration,
                                             metric_val_best=metric_val_best,
                                             **(dict(scaler=scaler.state_dict()) if scaler else {}),
+                                            **(dict(clipper=clipper.state_dict()) if clipper else {}),
                                         ),
                                     )
                 logger_info(f"saved latest checkpoint to file: {save_checkpoint_path}")
@@ -319,6 +328,7 @@ def worker(rank, args):
                                             iteration=iteration,
                                             metric_val_best=metric_val_best,
                                             **(dict(scaler=scaler.state_dict()) if scaler else {}),
+                                            **(dict(clipper=clipper.state_dict()) if clipper else {}),
                                         ),
                                     )
                 logger_info(f"saved current checkpoint to file: {save_checkpoint_path}")
@@ -367,6 +377,7 @@ def worker(rank, args):
                                                     iteration=iteration,
                                                     metric_val_best=metric_val_best,
                                                     **(dict(scaler=scaler.state_dict()) if scaler else {}),
+                                                    **(dict(clipper=clipper.state_dict()) if clipper else {}),
                                                 ),
                                             )
                         logger_info(f"saved best checkpoint to file: {save_checkpoint_path}")
