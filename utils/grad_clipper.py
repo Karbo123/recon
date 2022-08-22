@@ -1,5 +1,4 @@
 import torch
-from copy import deepcopy
 from collections import defaultdict
 
 # ref: https://github.com/aliutkus/torchpercentile/blob/master/torchpercentile/percentile.py
@@ -126,16 +125,16 @@ class GradClipper:
     # grad clipper also has state_dict, help to exactly resume training
     def state_dict(self):
         return dict(thres=self.thres, max_buffer=self.max_buffer, retain=self.retain,
-                    buffer=self.buffer,
-                    buffer_len=self.buffer_len,
+                    buffer=dict(self.buffer), # cannot pickle defaultdict, so convert to dict
+                    buffer_len=dict(self.buffer_len), # cannot pickle defaultdict, so convert to dict
                     )
     
     def load_state_dict(self, sd):
         self.thres = sd["thres"]
         self.max_buffer = sd["max_buffer"]
         self.retain = sd["retain"]
-        self.buffer = deepcopy(sd["buffer"])
-        self.buffer_len = deepcopy(sd["buffer_len"])
+        self.buffer = defaultdict(lambda: torch.zeros([max_buffer], device=device), sd["buffer"])
+        self.buffer_len = defaultdict(int, sd["buffer_len"])
 
 
 if __name__ == "__main__":
