@@ -118,7 +118,7 @@ class GradClipper:
             """ save norms """
             if self.buffer_len[name] >= self.max_buffer:
                 cut = round(self.retain * self.max_buffer)
-                self.buffer[name][:cut] = self.buffer[name][-cut:]
+                self.buffer[name][:cut] = self.buffer[name][-cut:].clone()
                 self.buffer_len[name] = cut
             self.buffer[name][self.buffer_len[name]] = norm
             self.buffer_len[name] += 1
