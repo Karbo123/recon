@@ -1,11 +1,11 @@
-import setuptools
+from setuptools import setup, find_packages
 
-setuptools.setup(
+setup(
     name="recon",
     author="Jiabao Lei",
     description="an universal pytorch deep learning experiment codebase",
     url="https://github.com/Karbo123/recon",
-    packages=["recon"],
+    packages=find_packages(),
     install_requires=["gorilla-core", "numpy", "PyYAML"],
     python_requires=">=3.6",
 )
