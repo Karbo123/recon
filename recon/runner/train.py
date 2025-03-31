@@ -194,7 +194,7 @@ def worker(rank, args):
     scheduler = cfg.get("scheduler")
     scaler    = cfg.get("scaler") # GradScaler (used for fp16 training)
     clipper   = cfg.get("clipper") # GradClipper (used for clipping gradients)
-    if not isinstance(scaler, torch.cuda.amp.GradScaler):
+    if not isinstance(scaler, torch.amp.GradScaler):
         scaler = None # it isn't a `GradScaler`
 
     arg_scheduler_is_loss = isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau)
